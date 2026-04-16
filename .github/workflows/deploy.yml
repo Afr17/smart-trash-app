@@ -3,33 +3,38 @@ name: Deploy Smart Trash App to AWS EC2
 on:
   push:
     branches:
-      - main  # Workflow ini akan jalan otomatis saat kamu push ke branch main
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Menggunakan versi terbaru untuk menghindari warning
 
       - name: Executing remote ssh commands using ssh key
         uses: appleboy/ssh-action@master
         with:
-          host: 16.78.2.119  # IP Public EC2 Terbaru
+          host: 16.78.2.119
           username: ubuntu
-          key: ${{ secrets.SSH_KEY }} # Nama secret yang harus kamu buat di GitHub
+          key: ${{ secrets.SSH_KEY }}
           script: |
-            # Masuk ke direktori aplikasi di EC2
-            cd ~/smart-trash-app
+            # Masuk ke direktori aplikasi
+            cd ~/smart-trash-app || mkdir ~/smart-trash-app && cd ~/smart-trash-app
             
-            # Ambil update kode terbaru dari GitHub
-            git pull origin main
+            # Update source code
+            git pull origin main || git clone https://github.com/Afr17/smart-trash-app.git .
             
-            # Membangun ulang Docker Image
+            # Membuat file .env secara otomatis dari Secrets GitHub
+            echo "DB_HOST=${{ secrets.DB_HOST }}" > .env
+            echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+            echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+            echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> .env
+            
+            # Build dan Restart Container
             sudo docker build -t smart-trash-app .
-            
-            # Menghentikan dan menghapus kontainer lama (jika ada)
             sudo docker rm -f smart-trash-container || true
-            
-            # Menjalankan kontainer baru dengan file .env
             sudo docker run -d -p 80:3000 --env-file .env --name smart-trash-container smart-trash-app
