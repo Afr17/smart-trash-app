@@ -1,21 +1,35 @@
-name: Deploy to EC2
+name: Deploy Smart Trash App to AWS EC2
+
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main  # Workflow ini akan jalan otomatis saat kamu push ke branch main
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Deploy via SSH
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Executing remote ssh commands using ssh key
         uses: appleboy/ssh-action@master
         with:
-          host: 108.137.75.206
+          host: 16.78.2.119  # IP Public EC2 Terbaru
           username: ubuntu
-          key: ${{ secrets.SSH_KEY }}
+          key: ${{ secrets.SSH_KEY }} # Nama secret yang harus kamu buat di GitHub
           script: |
+            # Masuk ke direktori aplikasi di EC2
             cd ~/smart-trash-app
+            
+            # Ambil update kode terbaru dari GitHub
             git pull origin main
+            
+            # Membangun ulang Docker Image
             sudo docker build -t smart-trash-app .
+            
+            # Menghentikan dan menghapus kontainer lama (jika ada)
             sudo docker rm -f smart-trash-container || true
+            
+            # Menjalankan kontainer baru dengan file .env
             sudo docker run -d -p 80:3000 --env-file .env --name smart-trash-container smart-trash-app
