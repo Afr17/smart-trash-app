@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4 # Menggunakan versi terbaru untuk menghindari warning
+        uses: actions/checkout@v4
 
       - name: Executing remote ssh commands using ssh key
         uses: appleboy/ssh-action@master
@@ -19,13 +19,17 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # Masuk ke direktori aplikasi
-            cd ~/smart-trash-app || mkdir ~/smart-trash-app && cd ~/smart-trash-app
+            # Masuk ke direktori aplikasi (buat jika belum ada)
+            mkdir -p ~/smart-trash-app && cd ~/smart-trash-app
             
-            # Update source code
-            git pull origin main || git clone https://github.com/Afr17/smart-trash-app.git .
+            # Ambil update kode terbaru
+            if [ -d ".git" ]; then
+              git pull origin main
+            else
+              git clone https://github.com/Afr17/smart-trash-app.git .
+            fi
             
-            # Membuat file .env secara otomatis dari Secrets GitHub
+            # Membuat file .env otomatis dari GitHub Secrets
             echo "DB_HOST=${{ secrets.DB_HOST }}" > .env
             echo "DB_USER=${{ secrets.DB_USER }}" >> .env
             echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
@@ -34,7 +38,7 @@ jobs:
             echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
             echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> .env
             
-            # Build dan Restart Container
+            # Build Docker Image dan Jalankan Container
             sudo docker build -t smart-trash-app .
             sudo docker rm -f smart-trash-container || true
             sudo docker run -d -p 80:3000 --env-file .env --name smart-trash-container smart-trash-app
