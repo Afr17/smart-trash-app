@@ -1,0 +1,21 @@
+name: Deploy to EC2
+on:
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: 108.137.75.206
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/smart-trash-app
+            git pull origin main
+            sudo docker build -t smart-trash-app .
+            sudo docker rm -f smart-trash-container || true
+            sudo docker run -d -p 80:3000 --env-file .env --name smart-trash-container smart-trash-app
